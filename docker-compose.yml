@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17-trixie
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  postgres-test:
+    image: pgvector/pgvector:pg17-trixie
+    environment:
+      POSTGRES_DB: enterprise_ai_test
+      POSTGRES_USER: enterprise_ai_test
+      POSTGRES_PASSWORD: enterprise_ai_test
+    ports:
+      - "127.0.0.1:5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U enterprise_ai_test -d enterprise_ai_test",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app:/app/backend
+      - VECTOR_STORE_BACKEND=${VECTOR_STORE_BACKEND:-chroma}
+      - MCP_AUTH_MODE=none
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-false}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mcp-server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2).read()",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mcp-server:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app:/app/backend
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8001
+      - MCP_AUTH_MODE=none
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready', timeout=2).read()",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: ["python", "-m", "backend.app.mcp.run_server"]
+
+volumes:
+  postgres_data:

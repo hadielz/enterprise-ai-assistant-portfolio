@@ -1,0 +1,22 @@
+AI Engineering Glossary
+
+Retrieval-Augmented Generation (RAG):
+RAG is a technique where an AI assistant retrieves relevant information from external documents or databases before generating an answer. Instead of relying only on the model's general knowledge, the assistant first searches a knowledge base, retrieves useful context, and then sends that context to the language model.
+
+Embeddings:
+Embeddings are numerical vector representations of text. They allow the system to compare meaning between a user question and document chunks.
+
+Vector Database:
+A vector database stores embeddings and allows semantic search. It helps retrieve text chunks that are similar in meaning to a user query.
+
+AI Agent:
+An AI agent is an AI system that can reason about a task, use tools, retrieve information, remember context, and perform multi-step workflows.
+
+Tool Calling:
+Tool calling allows an LLM to decide when to use an external function, API, calculator, database, ticketing system, or other tool.
+
+LangGraph:
+LangGraph is a framework for building stateful AI agent workflows using graph-based control flow.
+
+MCP:
+Model Context Protocol is a standard for connecting AI models and agents to external tools, data sources, and services.

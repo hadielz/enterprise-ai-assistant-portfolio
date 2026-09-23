@@ -1,0 +1,337 @@
+{
+  "name": "rag_cases",
+  "description": "Grounding, policy-fact, source-attribution, and RAG-route contracts.",
+  "cases": [
+    {
+      "id": "rag-required-policy-fact-001",
+      "description": "A grounded policy answer should contain the required reimbursement fact.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "What is the hotel reimbursement limit?"
+      },
+      "fixture_output": {
+        "route": "rag",
+        "used_rag": true,
+        "response": "The hotel reimbursement limit is 150 euros per night.",
+        "sources": [
+          "travel_policy.txt#chunk-4"
+        ],
+        "prompt_ids": [
+          "assistant.system.v1",
+          "rag.answer.v1"
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "rag"
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "response",
+            "values": [
+              "150 euros per night"
+            ],
+            "case_sensitive": false
+          }
+        },
+        {
+          "name": "source_match",
+          "config": {
+            "expected": [
+              "travel_policy.txt#chunk-4"
+            ]
+          }
+        },
+        {
+          "name": "prompt_match",
+          "config": {
+            "expected": [
+              "assistant.system.v1",
+              "rag.answer.v1"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "rag",
+        "grounding",
+        "policy-fact",
+        "source-attribution"
+      ]
+    },
+    {
+      "id": "rag-source-attribution-001",
+      "description": "RAG output must preserve all required source identifiers.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Summarise the relevant travel approval and reimbursement rules."
+      },
+      "fixture_output": {
+        "route": "rag",
+        "sources": [
+          "travel_policy.txt#chunk-2",
+          "travel_policy.txt#chunk-4"
+        ],
+        "response": "Travel requires approval and reimbursement is subject to policy limits."
+      },
+      "evaluators": [
+        {
+          "name": "source_match",
+          "config": {
+            "expected": [
+              "travel_policy.txt#chunk-2",
+              "travel_policy.txt#chunk-4"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "rag",
+        "sources",
+        "multi-chunk"
+      ]
+    },
+    {
+      "id": "rag-real-retrieval-workflow-v1c",
+      "description": "The controlled RAG target must execute the real production retriever with controlled local documents and preserve the required fact and source.",
+      "target": "rag_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "What is the hotel reimbursement limit?",
+        "controlled_documents": [
+          {
+            "source": "travel_policy.txt#chunk-4",
+            "content": "Hotel reimbursement is limited to 150 euros per night."
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "retrieval_succeeded",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "used_rag",
+            "expected": true
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "rag_context",
+            "values": [
+              "150 euros per night"
+            ],
+            "case_sensitive": false
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "rag_prompt",
+            "values": [
+              "What is the hotel reimbursement limit?",
+              "150 euros per night",
+              "Do not invent company policies"
+            ],
+            "case_sensitive": false
+          }
+        },
+        {
+          "name": "source_match",
+          "config": {
+            "expected": [
+              "travel_policy.txt#chunk-4"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "rag",
+        "controlled-retriever"
+      ],
+      "notes": "Phase 4 intentionally does not assert supervisor route metadata. Real LangGraph route selection remains reserved for Phase 5."
+    },
+    {
+      "id": "rag-controlled-source-order-v1c",
+      "description": "Multiple controlled retrieval results must preserve deterministic source and context ordering.",
+      "target": "rag_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Summarise the relevant travel rules.",
+        "controlled_documents": [
+          {
+            "source": "travel_policy.txt#chunk-2",
+            "content": "Business travel requires manager approval."
+          },
+          {
+            "source": "travel_policy.txt#chunk-4",
+            "content": "Hotel reimbursement is limited to 150 euros per night."
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "sources",
+            "expected": [
+              "travel_policy.txt#chunk-2",
+              "travel_policy.txt#chunk-4"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "rag_context",
+            "expected": "Business travel requires manager approval.\n\nHotel reimbursement is limited to 150 euros per night."
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "rag_prompt",
+            "values": [
+              "Business travel requires manager approval.",
+              "Hotel reimbursement is limited to 150 euros per night."
+            ],
+            "case_sensitive": false
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "rag",
+        "controlled-retriever",
+        "source-ordering"
+      ]
+    },
+    {
+      "id": "rag-controlled-empty-retrieval-v1c",
+      "description": "An empty controlled retrieval must remain a successful retrieval with no RAG context or sources.",
+      "target": "rag_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "What internal policy covers this unknown topic?",
+        "controlled_documents": []
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "retrieval_succeeded",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "used_rag",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "rag_context",
+            "expected": ""
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "sources",
+            "expected": []
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "rag_prompt",
+            "expected": null
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "rag",
+        "controlled-retriever",
+        "empty-retrieval"
+      ]
+    },
+    {
+      "id": "rag-controlled-retrieval-failure-v1c",
+      "description": "A controlled vector-search failure must propagate through the real retriever boundary and remain distinguishable from empty retrieval.",
+      "target": "rag_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "What is the hotel reimbursement limit?",
+        "controlled_documents": [],
+        "retrieval_behavior": "raise_error",
+        "retrieval_error_message": "controlled vector search unavailable"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "retrieval_succeeded",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "error_type",
+            "expected": "RuntimeError"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "error_message",
+            "expected": "controlled vector search unavailable"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "used_rag",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "sources",
+            "expected": []
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "rag",
+        "controlled-retriever",
+        "retrieval-failure"
+      ]
+    }
+  ]
+}

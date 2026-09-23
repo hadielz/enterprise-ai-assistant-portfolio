@@ -1,0 +1,952 @@
+{
+  "name": "behavior_cases",
+  "description": "Security, parity, ambiguity, and broader application-behaviour contracts.",
+  "cases": [
+    {
+      "id": "behavior-cross-user-isolation-001",
+      "description": "A user must not be able to read another user's conversation.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "owner_user_id": 10,
+        "requesting_user_id": 20,
+        "conversation_id": "private-conversation"
+      },
+      "fixture_output": {
+        "status_code": 404,
+        "conversation_returned": false
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "status_code",
+            "expected": 404
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "conversation_returned",
+            "expected": false
+          }
+        }
+      ],
+      "tags": [
+        "security",
+        "ownership",
+        "cross-user-isolation"
+      ],
+      "notes": "The application already has database-backed integration tests for this boundary. This case preserves it inside the AI quality contract."
+    },
+    {
+      "id": "behavior-prompt-route-contract-001",
+      "description": "A RAG route should include both the assistant and RAG prompt identifiers.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "route": "rag"
+      },
+      "fixture_output": {
+        "route": "rag",
+        "prompt_ids": [
+          "assistant.system.v1",
+          "rag.answer.v1"
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "prompt_match",
+          "config": {
+            "expected": [
+              "assistant.system.v1",
+              "rag.answer.v1"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "prompt-versioning",
+        "metadata",
+        "rag"
+      ]
+    },
+    {
+      "id": "behavior-streaming-parity-v1c",
+      "description": "Explicit calculator requests preserve equivalent tool semantics across the real non-streaming LangGraph and manual streaming pathways.",
+      "target": "streaming_parity_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 15 * 4.",
+        "selector_output": "{\"tool_name\":\"calculator\",\"tool_input\":\"15 * 4\"}",
+        "answer_providers": [
+          {
+            "provider_name": "primary-answer-provider",
+            "model_name": "primary-answer-model",
+            "behavior": "return",
+            "response": "Controlled final answer.",
+            "chunks": [
+              "Controlled ",
+              "final answer."
+            ],
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "route_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "semantic_mode_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_result_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "prompt_contract_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "persistence_once_each",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "summary_once_each",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.route",
+            "expected": "tool"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.route",
+            "expected": "tool"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.tool_name",
+            "expected": "calculator"
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "non_streaming.tool_result.tool_result",
+            "values": [
+              "60"
+            ],
+            "case_sensitive": true
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "streaming",
+        "non-streaming",
+        "parity",
+        "calculator"
+      ],
+      "notes": "Activated in Phase 6. This executes both real production chat pathways with deterministic dependencies; parity is based on workflow semantics, not tokenization."
+    },
+    {
+      "id": "behavior-streaming-ticket-parity-v1c",
+      "description": "Explicit ticket creation uses the ticket route once per independently executed pathway without duplicate side effects inside either pathway.",
+      "target": "streaming_parity_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Create a ticket for my WiFi issue.",
+        "selector_output": "{\"tool_name\":\"ticket_creator\",\"tool_input\":\"WiFi issue\"}",
+        "answer_providers": [
+          {
+            "provider_name": "primary-answer-provider",
+            "model_name": "primary-answer-model",
+            "behavior": "return",
+            "response": "Controlled final answer.",
+            "chunks": [
+              "Controlled ",
+              "final answer."
+            ],
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_result_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "ticket_side_effect_once_each",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.ticket_created",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.ticket_created",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.persisted_exchange_count",
+            "expected": 1
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.persisted_exchange_count",
+            "expected": 1
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "prompt_contract_equal",
+            "expected": true
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "streaming",
+        "non-streaming",
+        "parity",
+        "ticket",
+        "side-effect"
+      ]
+    },
+    {
+      "id": "behavior-streaming-no-tool-characterization-v1c",
+      "description": "Valid no-tool plus empty retrieval has semantic chat parity despite the known route-label representation difference.",
+      "target": "streaming_parity_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Explain what an API is.",
+        "selector_output": "{\"tool_name\":\"none\",\"tool_input\":\"\"}",
+        "retrieval_context": "",
+        "retrieval_sources": [],
+        "answer_providers": [
+          {
+            "provider_name": "primary-answer-provider",
+            "model_name": "primary-answer-model",
+            "behavior": "return",
+            "response": "Controlled final answer.",
+            "chunks": [
+              "Controlled ",
+              "final answer."
+            ],
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.selection_status",
+            "expected": "no_tool"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.selection_status",
+            "expected": "no_tool"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "semantic_mode_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.effective_answer_mode",
+            "expected": "chat"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.effective_answer_mode",
+            "expected": "chat"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.route",
+            "expected": "rag"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.route",
+            "expected": "chat"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "route_equal",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "known_route_representation_difference",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "retrieval_used_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "prompt_contract_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "persistence_once_each",
+            "expected": true
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "streaming",
+        "non-streaming",
+        "parity",
+        "no-tool",
+        "representation-difference"
+      ],
+      "notes": "This intentionally preserves Phase 5 semantics: LangGraph records route=rag while streaming keeps route=chat when retrieval is empty. Both effectively answer as chat."
+    },
+    {
+      "id": "behavior-streaming-rag-parity-v1c",
+      "description": "Controlled RAG retrieval preserves equivalent use of context and source identities across both pathways.",
+      "target": "streaming_parity_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "What is the hotel reimbursement limit?",
+        "selector_output": "{\"tool_name\":\"none\",\"tool_input\":\"\"}",
+        "retrieval_context": "Hotel reimbursement is limited to 150 euros per night.",
+        "retrieval_sources": [
+          "travel_policy.txt#chunk-4"
+        ],
+        "answer_providers": [
+          {
+            "provider_name": "primary-answer-provider",
+            "model_name": "primary-answer-model",
+            "behavior": "return",
+            "response": "Controlled final answer.",
+            "chunks": [
+              "Controlled ",
+              "final answer."
+            ],
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "semantic_mode_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.effective_answer_mode",
+            "expected": "rag"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.effective_answer_mode",
+            "expected": "rag"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "route_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "retrieval_used_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "sources_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "prompt_contract_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "persistence_once_each",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.sources",
+            "expected": [
+              "travel_policy.txt#chunk-4"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.sources",
+            "expected": [
+              "travel_policy.txt#chunk-4"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "streaming",
+        "non-streaming",
+        "parity",
+        "rag",
+        "sources"
+      ]
+    },
+    {
+      "id": "behavior-streaming-malformed-selector-parity-v1c",
+      "description": "Malformed selector output remains a parse_error in both pathways and is not treated as provider failure.",
+      "target": "streaming_parity_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 2 + 2.",
+        "selector_output": "calculator(2 + 2)",
+        "retrieval_context": "",
+        "retrieval_sources": [],
+        "answer_providers": [
+          {
+            "provider_name": "primary-answer-provider",
+            "model_name": "primary-answer-model",
+            "behavior": "return",
+            "response": "Controlled final answer.",
+            "chunks": [
+              "Controlled ",
+              "final answer."
+            ],
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.selection_status",
+            "expected": "parse_error"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.selection_status",
+            "expected": "parse_error"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.valid_no_tool_decision",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.valid_no_tool_decision",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.status",
+            "expected": "completed"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.status",
+            "expected": "completed"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "known_route_representation_difference",
+            "expected": true
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "streaming",
+        "non-streaming",
+        "parity",
+        "parse-error",
+        "tool-selection"
+      ]
+    },
+    {
+      "id": "behavior-streaming-provider-fallback-parity-v1c",
+      "description": "Primary answer-provider failure followed by fallback success preserves real fallback semantics in both generation pathways.",
+      "target": "streaming_parity_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 5 * 5.",
+        "selector_output": "{\"tool_name\":\"calculator\",\"tool_input\":\"5 * 5\"}",
+        "answer_providers": [
+          {
+            "provider_name": "primary-provider",
+            "model_name": "primary-model",
+            "behavior": "raise_error",
+            "response": "",
+            "chunks": [],
+            "error_message": "primary unavailable"
+          },
+          {
+            "provider_name": "fallback-provider",
+            "model_name": "fallback-model",
+            "behavior": "return",
+            "response": "Controlled fallback answer.",
+            "chunks": [
+              "Controlled fallback ",
+              "answer."
+            ],
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.status",
+            "expected": "completed"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.status",
+            "expected": "completed"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.provider_call_order",
+            "expected": [
+              "primary-provider",
+              "fallback-provider"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.provider_call_order",
+            "expected": [
+              "primary-provider",
+              "fallback-provider"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "persistence_once_each",
+            "expected": true
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "streaming",
+        "non-streaming",
+        "parity",
+        "provider-fallback"
+      ]
+    },
+    {
+      "id": "behavior-streaming-all-provider-failure-characterization-v1c",
+      "description": "All-provider failure exposes the documented difference between non-streaming exception propagation and streaming failure-message completion.",
+      "target": "streaming_parity_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Explain what an API is.",
+        "selector_output": "{\"tool_name\":\"none\",\"tool_input\":\"\"}",
+        "retrieval_context": "",
+        "answer_providers": [
+          {
+            "provider_name": "primary-provider",
+            "model_name": "primary-model",
+            "behavior": "raise_error",
+            "response": "",
+            "chunks": [],
+            "error_message": "primary unavailable"
+          },
+          {
+            "provider_name": "fallback-provider",
+            "model_name": "fallback-model",
+            "behavior": "raise_error",
+            "response": "",
+            "chunks": [],
+            "error_message": "fallback unavailable"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.status",
+            "expected": "error"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.error_type",
+            "expected": "LLMProviderError"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.status",
+            "expected": "completed_with_failure_message"
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "streaming.response",
+            "values": [
+              "temporarily unavailable"
+            ],
+            "case_sensitive": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.persisted_exchange_count",
+            "expected": 0
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.persisted_exchange_count",
+            "expected": 1
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.summary_call_count",
+            "expected": 0
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.summary_call_count",
+            "expected": 1
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.provider_call_order",
+            "expected": [
+              "primary-provider",
+              "fallback-provider"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.provider_call_order",
+            "expected": [
+              "primary-provider",
+              "fallback-provider"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "streaming",
+        "non-streaming",
+        "provider-failure",
+        "characterization"
+      ],
+      "notes": "This is a real product-level handling difference, not a metadata-only difference. Phase 6 characterizes it without changing production behavior."
+    },
+    {
+      "id": "behavior-ambiguous-ticket-confirmation-v1c",
+      "description": "An ambiguous support request selected as ticket_creator must require explicit confirmation and execute zero ticket side effects in both the real non-streaming LangGraph and streaming service pathways.",
+      "target": "streaming_parity_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "I need support with my WiFi.",
+        "selector_output": "{\"tool_name\":\"ticket_creator\",\"tool_input\":\"WiFi support\"}",
+        "retrieval_context": "",
+        "retrieval_sources": [],
+        "answer_providers": [
+          {
+            "provider_name": "controlled-answer",
+            "model_name": "controlled-answer-v1",
+            "behavior": "return",
+            "response": "Unused controlled answer.",
+            "chunks": [
+              "Unused controlled answer."
+            ],
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "route_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "semantic_mode_equal",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.route",
+            "expected": "confirmation"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.route",
+            "expected": "confirmation"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.action_status",
+            "expected": "confirmation_required"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.action_status",
+            "expected": "confirmation_required"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.ticket_created",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.ticket_created",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "non_streaming.tool_name",
+            "expected": null
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "streaming.tool_name",
+            "expected": null
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "non_streaming.response",
+            "values": [
+              "explicit request"
+            ],
+            "case_sensitive": false
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "streaming.response",
+            "values": [
+              "explicit request"
+            ],
+            "case_sensitive": false
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "ambiguity",
+        "side-effect-safety",
+        "ticket"
+      ],
+      "notes": "Activated in R1 only after deterministic application policy was added ahead of the ticket side effect. Selector output alone can no longer authorize ticket creation."
+    }
+  ]
+}

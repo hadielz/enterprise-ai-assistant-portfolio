@@ -1,0 +1,7 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+# R4 intentionally starts with correctness-critical checks instead of a
+# repository-wide style rewrite. Broader lint policy can evolve post-v1.0.
+select = ["E9", "F63", "F7", "F82"]

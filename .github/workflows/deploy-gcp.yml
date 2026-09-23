@@ -1,0 +1,202 @@
+name: Deploy Portfolio v1 to GCP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres-test:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: enterprise_ai_test
+          POSTGRES_USER: enterprise_ai_test
+          POSTGRES_PASSWORD: enterprise_ai_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U enterprise_ai_test -d enterprise_ai_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/backend
+      DATABASE_URL: postgresql+psycopg://enterprise_ai_test:enterprise_ai_test@127.0.0.1:5433/enterprise_ai_test
+      TEST_DATABASE_URL: postgresql+psycopg://enterprise_ai_test:enterprise_ai_test@127.0.0.1:5433/enterprise_ai_test
+      LLM_PROVIDER: mock
+      LLM_FALLBACK_PROVIDERS: mock
+      JWT_SECRET_KEY: deployment-verification-only-secret
+      VECTOR_STORE_BACKEND: pgvector
+      OTEL_ENABLED: "false"
+      MCP_AUTH_MODE: none
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-dev.txt
+      - name: Backend quality check
+        run: ruff check backend/app evals tests
+      - name: Python dependency vulnerability audit
+        run: >
+          pip-audit -r backend/requirements.txt --strict --progress-spinner off
+          --ignore-vuln PYSEC-2026-311
+          --ignore-vuln PYSEC-2026-3813
+          --ignore-vuln PYSEC-2026-3814
+          --ignore-vuln PYSEC-2026-3815
+      - name: Public repository guard
+        run: python scripts/security/repository_guard.py
+      - name: Verify Alembic migration chain
+        working-directory: backend
+        run: alembic -c alembic.ini upgrade head
+      - name: Backend tests
+        run: pytest -v
+      - name: AI quality gate
+        run: python -m evals.runner --experiment-name gcp-predeploy-quality-gate --output evals/results/gcp-predeploy-quality-report.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend lint/security/build
+        working-directory: frontend
+        run: npm ci && npm run lint && npm audit --audit-level=high && npm run build
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+        with:
+          version: "582.0.0"
+      - name: Verify Cloud SDK deployment capabilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud version
+          gcloud run deploy --help | grep -F -- '--readiness-probe'
+      - name: Configure Artifact Registry Docker auth
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+      - name: Build and push images
+        shell: bash
+        run: |
+          set -euo pipefail
+          REGISTRY="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPOSITORY }}"
+          BACKEND_IMAGE="$REGISTRY/backend:${GITHUB_SHA}"
+          FRONTEND_IMAGE="$REGISTRY/frontend:${GITHUB_SHA}"
+          docker build -t "$BACKEND_IMAGE" .
+          docker build -t "$FRONTEND_IMAGE" frontend
+          docker push "$BACKEND_IMAGE"
+          docker push "$FRONTEND_IMAGE"
+          echo "BACKEND_IMAGE=$BACKEND_IMAGE" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=$FRONTEND_IMAGE" >> "$GITHUB_ENV"
+      - name: Deploy private MCP service
+        shell: bash
+        run: |
+          set -euo pipefail
+          MCP_SERVICE="${{ vars.GCP_ENV_PREFIX }}-mcp"
+          gcloud run deploy "$MCP_SERVICE" \
+            --image "$BACKEND_IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service-account "${{ vars.MCP_SERVICE_ACCOUNT }}" \
+            --no-allow-unauthenticated \
+            --port 8001 \
+            --no-cpu-throttling \
+            --min 0 --max "${{ vars.MCP_MAX_INSTANCES || '2' }}" \
+            --concurrency "${{ vars.MCP_CONCURRENCY || '10' }}" \
+            --startup-probe "httpGet.path=/ready,httpGet.port=8001,failureThreshold=12,timeoutSeconds=2,periodSeconds=5" \
+            --liveness-probe "httpGet.path=/health,httpGet.port=8001,failureThreshold=3,timeoutSeconds=2,periodSeconds=30" \
+            --readiness-probe "httpGet.path=/ready,httpGet.port=8001,failureThreshold=3,successThreshold=1,timeoutSeconds=2,periodSeconds=10" \
+            --add-cloudsql-instances "${{ vars.CLOUD_SQL_CONNECTION_NAME }}" \
+            --set-env-vars "PYTHONPATH=/app:/app/backend,APP_ENV=production,OTEL_ENABLED=true,OTEL_SERVICE_NAME=$MCP_SERVICE,OTEL_EXPORTER=gcp_otlp,OTEL_SAMPLE_RATIO=${{ vars.OTEL_SAMPLE_RATIO || '0.1' }},GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }},DATABASE_POOL_SIZE=${{ vars.MCP_DATABASE_POOL_SIZE || '2' }},DATABASE_MAX_OVERFLOW=${{ vars.MCP_DATABASE_MAX_OVERFLOW || '1' }}" \
+            --set-secrets "DATABASE_URL=${{ vars.DATABASE_URL_SECRET }}:latest" \
+            --command python \
+            --args=-m,backend.app.mcp.run_server
+          MCP_URL="$(gcloud run services describe "$MCP_SERVICE" --region "${{ vars.GCP_REGION }}" --format='value(status.url)')"
+          echo "MCP_URL=$MCP_URL" >> "$GITHUB_ENV"
+      - name: Grant backend identity permission to invoke MCP
+        run: >-
+          gcloud run services add-iam-policy-binding "${{ vars.GCP_ENV_PREFIX }}-mcp"
+          --region "${{ vars.GCP_REGION }}"
+          --member "serviceAccount:${{ vars.BACKEND_SERVICE_ACCOUNT }}"
+          --role roles/run.invoker
+      - name: Deploy migration job and migrate
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOB="${{ vars.GCP_ENV_PREFIX }}-migrate"
+          gcloud run jobs deploy "$JOB" \
+            --image "$BACKEND_IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service-account "${{ vars.MIGRATION_SERVICE_ACCOUNT }}" \
+            --set-cloudsql-instances "${{ vars.CLOUD_SQL_CONNECTION_NAME }}" \
+            --set-env-vars "PYTHONPATH=/app:/app/backend" \
+            --set-secrets "DATABASE_URL=${{ vars.DATABASE_URL_SECRET }}:latest" \
+            --command alembic \
+            --args=-c,backend/alembic.ini,upgrade,head
+          gcloud run jobs execute "$JOB" --region "${{ vars.GCP_REGION }}" --wait
+      - name: Deploy public backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          SERVICE="${{ vars.GCP_ENV_PREFIX }}-backend"
+          gcloud run deploy "$SERVICE" \
+            --image "$BACKEND_IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service-account "${{ vars.BACKEND_SERVICE_ACCOUNT }}" \
+            --allow-unauthenticated \
+            --port 8000 \
+            --no-cpu-throttling \
+            --min 0 --max "${{ vars.BACKEND_MAX_INSTANCES || '3' }}" \
+            --concurrency "${{ vars.BACKEND_CONCURRENCY || '20' }}" \
+            --startup-probe "httpGet.path=/ready,httpGet.port=8000,failureThreshold=12,timeoutSeconds=2,periodSeconds=5" \
+            --liveness-probe "httpGet.path=/health,httpGet.port=8000,failureThreshold=3,timeoutSeconds=2,periodSeconds=30" \
+            --readiness-probe "httpGet.path=/ready,httpGet.port=8000,failureThreshold=3,successThreshold=1,timeoutSeconds=2,periodSeconds=10" \
+            --add-cloudsql-instances "${{ vars.CLOUD_SQL_CONNECTION_NAME }}" \
+            --set-env-vars "PYTHONPATH=/app:/app/backend,APP_ENV=production,ALLOWED_ORIGINS=https://invalid.example,VECTOR_STORE_BACKEND=pgvector,EMBEDDING_DIMENSIONS=1536,MCP_TICKET_URL=$MCP_URL/mcp,MCP_AUTH_MODE=google_identity,MCP_AUDIENCE=$MCP_URL,OTEL_ENABLED=true,OTEL_SERVICE_NAME=$SERVICE,OTEL_EXPORTER=gcp_otlp,OTEL_SAMPLE_RATIO=${{ vars.OTEL_SAMPLE_RATIO || '0.1' }},GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }},LLM_PROVIDER=${{ vars.LLM_PROVIDER || 'gemini' }},LLM_FALLBACK_PROVIDERS=${{ vars.LLM_FALLBACK_PROVIDERS || 'openai' }},GEMINI_MODEL=${{ vars.GEMINI_MODEL || 'gemini-3.6-flash' }},OPENAI_MODEL=${{ vars.OPENAI_MODEL || 'gpt-4o-mini' }},DATABASE_POOL_SIZE=${{ vars.BACKEND_DATABASE_POOL_SIZE || '3' }},DATABASE_MAX_OVERFLOW=${{ vars.BACKEND_DATABASE_MAX_OVERFLOW || '1' }},RATE_LIMIT_ENABLED=true,RATE_LIMIT_REGISTER_LIMIT=${{ vars.RATE_LIMIT_REGISTER_LIMIT || '20' }},RATE_LIMIT_REGISTER_WINDOW_SECONDS=${{ vars.RATE_LIMIT_REGISTER_WINDOW_SECONDS || '600' }},RATE_LIMIT_LOGIN_GLOBAL_LIMIT=${{ vars.RATE_LIMIT_LOGIN_GLOBAL_LIMIT || '60' }},RATE_LIMIT_LOGIN_GLOBAL_WINDOW_SECONDS=${{ vars.RATE_LIMIT_LOGIN_GLOBAL_WINDOW_SECONDS || '60' }},RATE_LIMIT_LOGIN_USER_LIMIT=${{ vars.RATE_LIMIT_LOGIN_USER_LIMIT || '10' }},RATE_LIMIT_LOGIN_USER_WINDOW_SECONDS=${{ vars.RATE_LIMIT_LOGIN_USER_WINDOW_SECONDS || '300' }},RATE_LIMIT_CHAT_LIMIT=${{ vars.RATE_LIMIT_CHAT_LIMIT || '30' }},RATE_LIMIT_CHAT_WINDOW_SECONDS=${{ vars.RATE_LIMIT_CHAT_WINDOW_SECONDS || '60' }},RATE_LIMIT_RAG_INDEX_LIMIT=${{ vars.RATE_LIMIT_RAG_INDEX_LIMIT || '3' }},RATE_LIMIT_RAG_INDEX_WINDOW_SECONDS=${{ vars.RATE_LIMIT_RAG_INDEX_WINDOW_SECONDS || '3600' }},RATE_LIMIT_TICKET_STATUS_LIMIT=${{ vars.RATE_LIMIT_TICKET_STATUS_LIMIT || '30' }},RATE_LIMIT_TICKET_STATUS_WINDOW_SECONDS=${{ vars.RATE_LIMIT_TICKET_STATUS_WINDOW_SECONDS || '60' }}" \
+            --set-secrets "DATABASE_URL=${{ vars.DATABASE_URL_SECRET }}:latest,JWT_SECRET_KEY=${{ vars.JWT_SECRET }}:latest,OPENAI_API_KEY=${{ vars.OPENAI_API_KEY_SECRET }}:latest,GEMINI_API_KEY=${{ vars.GEMINI_API_KEY_SECRET }}:latest"
+          BACKEND_URL="$(gcloud run services describe "$SERVICE" --region "${{ vars.GCP_REGION }}" --format='value(status.url)')"
+          echo "BACKEND_URL=$BACKEND_URL" >> "$GITHUB_ENV"
+      - name: Deploy public frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          SERVICE="${{ vars.GCP_ENV_PREFIX }}-frontend"
+          gcloud run deploy "$SERVICE" \
+            --image "$FRONTEND_IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service-account "${{ vars.FRONTEND_SERVICE_ACCOUNT }}" \
+            --allow-unauthenticated \
+            --port 8080 \
+            --min 0 --max 2 \
+            --concurrency 80 \
+            --startup-probe "httpGet.path=/health,httpGet.port=8080,failureThreshold=12,timeoutSeconds=2,periodSeconds=5" \
+            --liveness-probe "httpGet.path=/health,httpGet.port=8080,failureThreshold=3,timeoutSeconds=2,periodSeconds=30" \
+            --readiness-probe "httpGet.path=/health,httpGet.port=8080,failureThreshold=3,successThreshold=1,timeoutSeconds=2,periodSeconds=10" \
+            --set-env-vars "API_BASE_URL=$BACKEND_URL/api"
+          FRONTEND_URL="$(gcloud run services describe "$SERVICE" --region "${{ vars.GCP_REGION }}" --format='value(status.url)')"
+          echo "FRONTEND_URL=$FRONTEND_URL" >> "$GITHUB_ENV"
+      - name: Configure backend CORS for deployed frontend
+        run: >-
+          gcloud run services update "${{ vars.GCP_ENV_PREFIX }}-backend"
+          --region "${{ vars.GCP_REGION }}"
+          --update-env-vars "ALLOWED_ORIGINS=$FRONTEND_URL"
+      - name: Deployment summary
+        run: |
+          echo "Frontend: $FRONTEND_URL"
+          echo "Backend:  $BACKEND_URL"
+          echo "MCP:      private ($MCP_URL)"

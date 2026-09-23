@@ -1,0 +1,3 @@
+# R4 release-quality/security tooling. Kept out of the production image.
+pip-audit==2.10.1
+ruff==0.16.2

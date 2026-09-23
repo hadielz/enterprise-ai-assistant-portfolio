@@ -1,0 +1,13 @@
+Travel Policy:
+Employees can be reimbursed for train, flight, hotel, and meal expenses related to approved business trips.
+Receipts are required for all expenses above 25 euros.
+Hotel reimbursement is limited to 150 euros per night.
+Meal reimbursement is limited to 30 euros per meal.
+
+Remote Work Policy:
+Employees may work remotely up to two days per week with manager approval.
+Sensitive company data must not be stored on personal devices.
+
+IT Support Policy:
+Employees should create an IT ticket when they face login issues, software installation problems, or hardware failures.
+Critical issues should be marked as urgent.

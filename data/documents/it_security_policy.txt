@@ -1,0 +1,10 @@
+IT Security Policy:
+Employees must use multi-factor authentication for all company systems.
+Passwords must be at least 12 characters long.
+Company data must not be stored on personal devices.
+Suspicious emails must be reported to IT security immediately.
+
+Device Policy:
+Company laptops must be encrypted.
+Lost or stolen devices must be reported within 24 hours.
+Software installation requires IT approval.

@@ -1,0 +1,773 @@
+{
+  "name": "tool_cases",
+  "description": "Tool-selection, side-effect, parsing, and provider-fallback contracts.",
+  "cases": [
+    {
+      "id": "tool-calculator-result-001",
+      "description": "A calculator tool result should be represented as verified tool output.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 120 * 5."
+      },
+      "fixture_output": {
+        "route": "tool",
+        "tool_name": "calculator",
+        "tool_succeeded": true,
+        "tool_result": "600",
+        "response": "120 multiplied by 5 is 600.",
+        "prompt_ids": [
+          "assistant.system.v1",
+          "tool.answer.v1"
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "calculator"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_succeeded",
+            "expected": true
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "response",
+            "values": [
+              "600"
+            ],
+            "case_sensitive": true
+          }
+        }
+      ],
+      "tags": [
+        "tool",
+        "calculator",
+        "verified-output"
+      ]
+    },
+    {
+      "id": "tool-no-fabricated-success-001",
+      "description": "A failed tool execution must not be reported as successful.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Create a ticket for my laptop issue."
+      },
+      "fixture_output": {
+        "route": "tool",
+        "tool_name": "ticket_creator",
+        "tool_succeeded": false,
+        "ticket_created": false,
+        "response": "I could not create the support ticket."
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_succeeded",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "ticket_created",
+            "expected": false
+          }
+        }
+      ],
+      "tags": [
+        "tool",
+        "safety",
+        "no-fabricated-success"
+      ]
+    },
+    {
+      "id": "tool-selector-valid-calculator-v1c",
+      "description": "A valid calculator selection is classified as selected.",
+      "target": "tool_selector_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 10 + 15.",
+        "provider_output": "{\"tool_name\": \"calculator\", \"tool_input\": \"10 + 15\"}"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "selected"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "calculator"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_input",
+            "expected": "10 + 15"
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "tool-selection",
+        "calculator"
+      ]
+    },
+    {
+      "id": "tool-selector-valid-ticket-v1c",
+      "description": "A valid ticket selection is classified as selected.",
+      "target": "tool_selector_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Create a support ticket for my WiFi issue.",
+        "provider_output": "{\"tool_name\": \"ticket_creator\", \"tool_input\": \"WiFi issue\"}"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "selected"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "ticket_creator"
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "tool-selection",
+        "ticket"
+      ]
+    },
+    {
+      "id": "tool-selector-valid-no-tool-v1c",
+      "description": "A valid no-tool response is explicitly classified as no_tool.",
+      "target": "tool_selector_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Explain what an API is.",
+        "provider_output": "{\"tool_name\": \"none\", \"tool_input\": \"\"}"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "no_tool"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "valid_no_tool_decision",
+            "expected": true
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": null
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "tool-selection",
+        "no-tool"
+      ]
+    },
+    {
+      "id": "tool-malformed-selection-output-v1c",
+      "description": "Malformed tool-selection output must remain distinguishable from a valid no-tool decision.",
+      "target": "tool_selector_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 10 + 15.",
+        "provider_output": "calculator(10 + 15)"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "parse_error"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "valid_no_tool_decision",
+            "expected": false
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "tool-selection",
+        "malformed-json"
+      ],
+      "notes": "Activated in v1C Phase 2. Production routing remains legacy-compatible while the selector result now preserves parse_error explicitly."
+    },
+    {
+      "id": "tool-selector-fenced-json-v1c",
+      "description": "A complete Markdown-fenced JSON tool-selection response is normalized and classified as selected.",
+      "target": "tool_selector_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 5 * 6.",
+        "provider_output": "```json\n{\"tool_name\": \"calculator\", \"tool_input\": \"5 * 6\"}\n```"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "selected"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "calculator"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "tool_input",
+            "expected": "5 * 6"
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "tool-selection",
+        "fenced-json"
+      ],
+      "notes": "Updated during R2 live-provider verification after Gemini returned an otherwise valid tool-selection JSON object wrapped in a complete Markdown JSON fence. Only a complete fence is normalized; arbitrary prose around JSON and malformed JSON remain parse errors."
+    },
+    {
+      "id": "tool-selector-missing-field-v1c",
+      "description": "A JSON object missing a required tool-selection field is invalid_schema.",
+      "target": "tool_selector_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 3 + 4.",
+        "provider_output": "{\"tool_name\": \"calculator\"}"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "invalid_schema"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "valid_no_tool_decision",
+            "expected": false
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "tool-selection",
+        "invalid-schema",
+        "missing-fields"
+      ]
+    },
+    {
+      "id": "tool-selector-invalid-field-type-v1c",
+      "description": "Tool-selection fields with invalid types are invalid_schema.",
+      "target": "tool_selector_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 3 + 4.",
+        "provider_output": "{\"tool_name\": \"calculator\", \"tool_input\": 7}"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "invalid_schema"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "valid_no_tool_decision",
+            "expected": false
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "tool-selection",
+        "invalid-schema",
+        "invalid-types"
+      ]
+    },
+    {
+      "id": "tool-selector-unsupported-tool-v1c",
+      "description": "A syntactically valid but unknown tool name is unsupported_tool.",
+      "target": "tool_selector_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Search the web for this.",
+        "provider_output": "{\"tool_name\": \"web_search\", \"tool_input\": \"enterprise AI\"}"
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "unsupported_tool"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "web_search"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "valid_no_tool_decision",
+            "expected": false
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "tool-selection",
+        "unsupported-tool"
+      ]
+    },
+    {
+      "id": "tool-provider-fallback-v1c",
+      "description": "A primary-provider execution failure followed by fallback success must use the real fallback chain and preserve provider identity metadata.",
+      "target": "provider_fallback_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 7 * 8.",
+        "providers": [
+          {
+            "configured_name": "primary",
+            "provider_name": "primary-provider",
+            "model_name": "primary-model",
+            "behavior": "raise_error",
+            "response": "",
+            "error_message": "controlled primary failure"
+          },
+          {
+            "configured_name": "fallback",
+            "provider_name": "fallback-provider",
+            "model_name": "fallback-model",
+            "behavior": "return",
+            "response": "{\"tool_name\": \"calculator\", \"tool_input\": \"7 * 8\"}",
+            "error_message": "controlled fallback failure"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider_succeeded",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider",
+            "expected": "fallback-provider"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "model",
+            "expected": "fallback-model"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "fallback_used",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider_call_order",
+            "expected": [
+              "primary-provider",
+              "fallback-provider"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "selected"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "calculator"
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "provider-fallback",
+        "tool-selection",
+        "phase3"
+      ],
+      "notes": "This active case executes the real production get_llm_provider() and ResilientLLMProvider.generate_with_metadata() with deterministic local providers."
+    },
+    {
+      "id": "tool-provider-fallback-primary-success-v1c",
+      "description": "The primary provider succeeds and no fallback provider is called.",
+      "target": "provider_fallback_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 2 + 3.",
+        "providers": [
+          {
+            "configured_name": "primary",
+            "provider_name": "primary-provider",
+            "model_name": "primary-model",
+            "behavior": "return",
+            "response": "{\"tool_name\": \"calculator\", \"tool_input\": \"2 + 3\"}",
+            "error_message": "unused primary failure"
+          },
+          {
+            "configured_name": "fallback",
+            "provider_name": "fallback-provider",
+            "model_name": "fallback-model",
+            "behavior": "return",
+            "response": "{\"tool_name\": \"calculator\", \"tool_input\": \"999\"}",
+            "error_message": "unused fallback failure"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider_succeeded",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider",
+            "expected": "primary-provider"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "model",
+            "expected": "primary-model"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "fallback_used",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider_call_order",
+            "expected": [
+              "primary-provider"
+            ]
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "calculator"
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "provider-fallback",
+        "primary-success",
+        "phase3"
+      ]
+    },
+    {
+      "id": "tool-provider-fallback-multiple-failures-v1c",
+      "description": "Multiple provider execution failures are attempted in configured order before a later provider succeeds.",
+      "target": "provider_fallback_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Create a ticket for my VPN issue.",
+        "providers": [
+          {
+            "configured_name": "primary",
+            "provider_name": "primary-provider",
+            "model_name": "primary-model",
+            "behavior": "raise_error",
+            "response": "",
+            "error_message": "primary unavailable"
+          },
+          {
+            "configured_name": "fallback-one",
+            "provider_name": "fallback-one-provider",
+            "model_name": "fallback-one-model",
+            "behavior": "raise_error",
+            "response": "",
+            "error_message": "fallback one unavailable"
+          },
+          {
+            "configured_name": "fallback-two",
+            "provider_name": "fallback-two-provider",
+            "model_name": "fallback-two-model",
+            "behavior": "return",
+            "response": "{\"tool_name\": \"ticket_creator\", \"tool_input\": \"VPN issue\"}",
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider",
+            "expected": "fallback-two-provider"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "model",
+            "expected": "fallback-two-model"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "fallback_used",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider_call_order",
+            "expected": [
+              "primary-provider",
+              "fallback-one-provider",
+              "fallback-two-provider"
+            ]
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "ticket_creator"
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "provider-fallback",
+        "ordered-failures",
+        "phase3"
+      ]
+    },
+    {
+      "id": "tool-provider-fallback-all-fail-v1c",
+      "description": "When every configured provider fails, the existing LLMProviderError contract is preserved.",
+      "target": "provider_fallback_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Explain an API.",
+        "providers": [
+          {
+            "configured_name": "primary",
+            "provider_name": "primary-provider",
+            "model_name": "primary-model",
+            "behavior": "raise_error",
+            "response": "",
+            "error_message": "primary unavailable"
+          },
+          {
+            "configured_name": "fallback",
+            "provider_name": "fallback-provider",
+            "model_name": "fallback-model",
+            "behavior": "raise_error",
+            "response": "",
+            "error_message": "fallback unavailable"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider_succeeded",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider_call_order",
+            "expected": [
+              "primary-provider",
+              "fallback-provider"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "error_type",
+            "expected": "LLMProviderError"
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "error_message",
+            "values": [
+              "All configured LLM providers failed.",
+              "primary-provider: primary unavailable",
+              "fallback-provider: fallback unavailable"
+            ],
+            "case_sensitive": true
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "provider-fallback",
+        "all-fail",
+        "phase3"
+      ]
+    },
+    {
+      "id": "tool-provider-success-malformed-protocol-no-fallback-v1c",
+      "description": "A provider that successfully returns malformed tool-selection text must not trigger provider fallback.",
+      "target": "provider_fallback_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 10 + 15.",
+        "providers": [
+          {
+            "configured_name": "primary",
+            "provider_name": "primary-provider",
+            "model_name": "primary-model",
+            "behavior": "return",
+            "response": "calculator(10 + 15)",
+            "error_message": "unused"
+          },
+          {
+            "configured_name": "fallback",
+            "provider_name": "fallback-provider",
+            "model_name": "fallback-model",
+            "behavior": "return",
+            "response": "{\"tool_name\": \"calculator\", \"tool_input\": \"10 + 15\"}",
+            "error_message": "unused"
+          }
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider",
+            "expected": "primary-provider"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "fallback_used",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "provider_call_order",
+            "expected": [
+              "primary-provider"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "parse_error"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": null
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "provider-fallback",
+        "protocol-boundary",
+        "parse-error",
+        "phase3"
+      ],
+      "notes": "Provider execution success and tool-protocol validity are intentionally separate contracts."
+    }
+  ]
+}

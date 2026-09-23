@@ -1,0 +1,564 @@
+{
+  "name": "routing_cases",
+  "description": "Deterministic route-selection contracts.",
+  "cases": [
+    {
+      "id": "routing-calculator-explicit-001",
+      "description": "An explicit arithmetic request is expected to use the tool route.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 18 * 27."
+      },
+      "fixture_output": {
+        "route": "tool",
+        "tool_name": "calculator",
+        "prompt_ids": [
+          "assistant.system.v1",
+          "tool.answer.v1"
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "tool"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "calculator"
+          }
+        },
+        {
+          "name": "prompt_match",
+          "config": {
+            "expected": [
+              "assistant.system.v1",
+              "tool.answer.v1"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "routing",
+        "calculator",
+        "v1b-contract"
+      ],
+      "notes": "A correct arithmetic answer alone is insufficient; the selected route must also be correct."
+    },
+    {
+      "id": "routing-ticket-explicit-001",
+      "description": "An explicit request to create a support ticket is expected to use ticket_creator.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Create a support ticket for my WiFi issue."
+      },
+      "fixture_output": {
+        "route": "tool",
+        "tool_name": "ticket_creator",
+        "prompt_ids": [
+          "assistant.system.v1",
+          "tool.answer.v1"
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "tool"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "ticket_creator"
+          }
+        }
+      ],
+      "tags": [
+        "routing",
+        "ticket",
+        "explicit-side-effect"
+      ]
+    },
+    {
+      "id": "routing-ordinary-chat-001",
+      "description": "An ordinary explanatory question should not use a tool.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Explain what an API is."
+      },
+      "fixture_output": {
+        "route": "chat",
+        "tool_name": null,
+        "prompt_ids": [
+          "assistant.system.v1"
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "chat"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": null
+          }
+        },
+        {
+          "name": "prompt_match",
+          "config": {
+            "expected": [
+              "assistant.system.v1"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "routing",
+        "chat",
+        "no-tool"
+      ]
+    },
+    {
+      "id": "routing-rag-policy-001",
+      "description": "An internal policy question should use the RAG route.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "What is the hotel reimbursement limit?"
+      },
+      "fixture_output": {
+        "route": "rag",
+        "tool_name": null,
+        "used_rag": true,
+        "prompt_ids": [
+          "assistant.system.v1",
+          "rag.answer.v1"
+        ]
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "rag"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "used_rag",
+            "expected": true
+          }
+        },
+        {
+          "name": "prompt_match",
+          "config": {
+            "expected": [
+              "assistant.system.v1",
+              "rag.answer.v1"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "routing",
+        "rag",
+        "policy"
+      ]
+    },
+    {
+      "id": "routing-troubleshoot-no-ticket-001",
+      "description": "A troubleshooting request must not silently create a side-effecting support ticket.",
+      "target": "contract_fixture",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "My WiFi is broken. What should I do?"
+      },
+      "fixture_output": {
+        "route": "chat",
+        "tool_name": null,
+        "ticket_created": false
+      },
+      "evaluators": [
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": null
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "ticket_created",
+            "expected": false
+          }
+        }
+      ],
+      "tags": [
+        "routing",
+        "troubleshooting",
+        "side-effect-safety"
+      ],
+      "notes": "The final product contract may later permit clarification or confirmation before ticket creation."
+    },
+    {
+      "id": "routing-real-workflow-calculator-v1c",
+      "description": "The real controlled LangGraph workflow must route explicit arithmetic to calculator.",
+      "target": "langgraph_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Calculate 18 * 27.",
+        "selector_output": "{\"tool_name\": \"calculator\", \"tool_input\": \"18 * 27\"}",
+        "assistant_response": "The controlled assistant used the calculator result."
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "tool"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "calculator"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "selected"
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "tool_result.tool_result",
+            "values": [
+              "486"
+            ],
+            "case_sensitive": true
+          }
+        },
+        {
+          "name": "prompt_match",
+          "config": {
+            "expected": [
+              "assistant.system.v1",
+              "tool.answer.v1"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "agent_steps",
+            "expected": [
+              "load_context",
+              "select_tool",
+              "supervisor",
+              "generate_answer"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "langgraph",
+        "routing-regression"
+      ],
+      "notes": "Phase 5 executes the real compiled LangGraph, supervisor, tool router, Phase 2 selector parser, and production calculator with controlled external/stateful boundaries."
+    },
+    {
+      "id": "routing-real-workflow-no-tool-current-v1c",
+      "description": "A valid no-tool decision follows the current real graph through the RAG branch; empty retrieval produces an ordinary chat answer while supervisor route metadata remains rag.",
+      "target": "langgraph_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Explain what an API is.",
+        "selector_output": "{\"tool_name\": \"none\", \"tool_input\": \"\"}",
+        "retrieval_context": "",
+        "retrieval_sources": [],
+        "assistant_response": "An API lets software systems communicate."
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "rag"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": null
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "no_tool"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "valid_no_tool_decision",
+            "expected": true
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "used_rag",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "effective_answer_mode",
+            "expected": "chat"
+          }
+        },
+        {
+          "name": "prompt_match",
+          "config": {
+            "expected": [
+              "assistant.system.v1"
+            ]
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "agent_steps",
+            "expected": [
+              "load_context",
+              "select_tool",
+              "supervisor",
+              "retrieve_rag",
+              "generate_answer"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "langgraph",
+        "no-tool",
+        "current-behavior"
+      ],
+      "notes": "Characterization of current production semantics: supervisor route remains rag whenever no tool result exists, even if retrieval is empty and the final answer is ordinary chat. Phase 5 does not clean up this metadata."
+    },
+    {
+      "id": "routing-real-workflow-ticket-explicit-v1c",
+      "description": "An explicit ticket request selected by the controlled selector executes the real tool router and real graph tool route while replacing the ticket side effect with a deterministic executor.",
+      "target": "langgraph_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "Create a support ticket for my WiFi issue.",
+        "selector_output": "{\"tool_name\": \"ticket_creator\", \"tool_input\": \"WiFi issue\"}",
+        "assistant_response": "A controlled support ticket was created."
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "tool"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": "ticket_creator"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "selected"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "ticket_created",
+            "expected": true
+          }
+        },
+        {
+          "name": "contains",
+          "config": {
+            "path": "tool_result.tool_result",
+            "values": [
+              "CONTROLLED-TICKET-1"
+            ],
+            "case_sensitive": true
+          }
+        },
+        {
+          "name": "prompt_match",
+          "config": {
+            "expected": [
+              "assistant.system.v1",
+              "tool.answer.v1"
+            ]
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "langgraph",
+        "ticket",
+        "explicit-side-effect"
+      ],
+      "notes": "The ticket executor is controlled; no external ticket system is called."
+    },
+    {
+      "id": "routing-troubleshooting-controlled-no-tool-current-v1c",
+      "description": "A troubleshooting-only request with a valid controlled no-tool decision does not create a ticket; current graph metadata still follows the RAG branch before producing ordinary chat when retrieval is empty.",
+      "target": "langgraph_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "My WiFi is broken. What should I do?",
+        "selector_output": "{\"tool_name\": \"none\", \"tool_input\": \"\"}",
+        "retrieval_context": "",
+        "retrieval_sources": [],
+        "assistant_response": "Try reconnecting to WiFi and checking your network settings."
+      },
+      "evaluators": [
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "rag"
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": null
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "no_tool"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "ticket_created",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "used_rag",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "effective_answer_mode",
+            "expected": "chat"
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "langgraph",
+        "troubleshooting",
+        "current-behavior",
+        "side-effect-safety"
+      ],
+      "notes": "This characterizes the graph when the selector intentionally chooses no tool. It does not prove that the current model-based selector will always make that decision."
+    },
+    {
+      "id": "routing-troubleshooting-controlled-ticket-current-v1c",
+      "description": "Even if the controlled selector proposes ticket_creator for a troubleshooting-only request, the R1 application safety policy suppresses the side effect and the real graph continues through the existing no-tool/RAG/chat path.",
+      "target": "langgraph_controlled",
+      "status": "active",
+      "required": true,
+      "input": {
+        "message": "My WiFi is broken. What should I do?",
+        "selector_output": "{\"tool_name\": \"ticket_creator\", \"tool_input\": \"WiFi is broken\"}",
+        "assistant_response": "A controlled support ticket was created."
+      },
+      "evaluators": [
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "selection_status",
+            "expected": "selected"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "ticket_created",
+            "expected": false
+          }
+        },
+        {
+          "name": "tool_match",
+          "config": {
+            "expected": null
+          }
+        },
+        {
+          "name": "route_match",
+          "config": {
+            "expected": "rag"
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "used_rag",
+            "expected": false
+          }
+        },
+        {
+          "name": "exact_match",
+          "config": {
+            "path": "effective_answer_mode",
+            "expected": "chat"
+          }
+        }
+      ],
+      "tags": [
+        "v1c",
+        "langgraph",
+        "troubleshooting",
+        "current-behavior",
+        "ticket-policy-gap"
+      ],
+      "notes": "R1 deliberately replaces the old Phase 5 characterization in which selector output alone could trigger the ticket side effect."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+Finance Policy:
+Expense reports must be submitted within 30 days after the expense date.
+Receipts are required for all expenses above 25 euros.
+Meal expenses are reimbursed up to 30 euros per meal.
+Hotel expenses are reimbursed up to 150 euros per night.
+Taxi expenses require business justification.
+
+Invoice Policy:
+Supplier invoices must include a purchase order number.
+Invoices above 5,000 euros require department head approval.
