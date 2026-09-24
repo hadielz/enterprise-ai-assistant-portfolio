@@ -2,7 +2,9 @@
 
 Enterprise AI Assistant is a production-oriented portfolio reference application for an **Internal Enterprise Operations Assistant**. It demonstrates how authenticated enterprise chat, retrieval-augmented generation (RAG), bounded business tools, multi-provider LLM access, agent orchestration, relational persistence, deterministic AI evaluation, cloud deployment, observability, and release hardening can fit into one coherent system.
 
-The accepted R0-R4 implementation was deployed and live-accepted on Google Cloud. R5 packages that accepted system as the bounded **Portfolio v1.0.0** release; the release tag is created only from a final CI-green `main` commit.
+The accepted R0-R4 implementation was deployed and live-accepted on Google Cloud. R5 packaged that accepted system as the bounded **Portfolio v1.0.0** release from a final CI-green `main` commit.
+
+> **Repository scope.** This repository is the clean public Portfolio v1.0.0 snapshot. The canonical engineering repository and full development history are maintained privately; this repository publishes the accepted release source and portfolio evidence without exposing private development history.
 
 ## What the project demonstrates
 

@@ -67,17 +67,19 @@ Live acceptance completed:
 
 ## R5 — portfolio release
 
-- [ ] README gives a visitor a correct 30-second understanding of the product.
-- [ ] Quick start is verified from a clean checkout.
-- [ ] Architecture diagrams are present and match the deployed system.
-- [ ] AI-quality/evaluation architecture and CI gate are explained.
-- [ ] Security boundaries and known limitations are visible.
-- [ ] Screenshots and a short demo are available.
-- [ ] Release notes are written.
-- [ ] All backend tests pass.
-- [ ] Deterministic AI quality gate passes with no required active failures.
-- [ ] Frontend production build passes.
-- [ ] Docker image build passes.
-- [ ] GitHub Actions is green on the release commit.
-- [ ] Repository is tagged `v1.0.0`.
-- [ ] v1.0 feature development stops after the tag; subsequent work is assigned to a post-release track.
+**Status: complete.** All R5 release gates below passed for Portfolio v1.0.0. Post-release documentation updates may continue on `main` without moving the protected `v1.0.0` tag.
+
+- [x] README gives a visitor a correct 30-second understanding of the product.
+- [x] Quick start is verified from a clean checkout.
+- [x] Architecture diagrams are present and match the deployed system.
+- [x] AI-quality/evaluation architecture and CI gate are explained.
+- [x] Security boundaries and known limitations are visible.
+- [x] Screenshots and a short demo are available.
+- [x] Release notes are written.
+- [x] All backend tests pass.
+- [x] Deterministic AI quality gate passes with no required active failures.
+- [x] Frontend production build passes.
+- [x] Docker image build passes.
+- [x] GitHub Actions is green on the release commit.
+- [x] Repository is tagged `v1.0.0`.
+- [x] v1.0 feature development stops after the tag; subsequent work is assigned to a post-release track.
