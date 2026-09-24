@@ -2,7 +2,7 @@
 
 ## Release-track rule
 
-The project is now in a bounded release program. R0 freezes the scope. R1–R5 may implement only work that satisfies the product contract and v1.0 acceptance criteria.
+The bounded Portfolio v1.0 implementation and release gates are complete, and `v1.0.0` is released. R0 froze the scope, and R1–R5 release work implemented only what was required by the product contract and v1.0 acceptance criteria. R5-06 post-release propagation remains active; new functionality belongs to post-v1.0 tracks.
 
 ```text
 R0 — Release Baseline, Product Contract & Scope Freeze
@@ -83,7 +83,7 @@ Completed scope:
 - conservative Cloud Run scaling/database-pool baselines;
 - Artifact Registry images and manual GitHub deployment using Workload Identity Federation.
 
-R3 completed authoritative integration, live GCP deployment and the runbook smoke checks. R4 has since completed security/release hardening and live acceptance. R5 - Portfolio v1.0 - is the bounded release milestone that packages the accepted system for `v1.0.0`.
+R3 completed authoritative integration, live GCP deployment and the runbook smoke checks. R4 subsequently completed security/release hardening and live acceptance. R5 then packaged the accepted system as Portfolio v1.0.0; the release gates are complete and R5-06 post-release propagation remains active.
 
 ## R4 — Security / Release Hardening
 
@@ -109,7 +109,7 @@ R4 completed independent integration, CI, merged deployment, live rate/readiness
 
 ## R5 — Portfolio v1.0
 
-Release outcome: **Portfolio v1.0.0**
+Status: **released; post-release propagation active** — release outcome: **Portfolio v1.0.0**
 
 Release reason: convert the working repository into a concise, reviewable portfolio artifact.
 
@@ -125,7 +125,7 @@ Bounded goals:
 - `v1.0.0` tag;
 - portfolio/CV/LinkedIn packaging.
 
-R5 ends feature development for v1.0.
+R5 ended feature development for v1.0.
 
 ## Post-v1.0 tracks
 

@@ -1,5 +1,7 @@
 # Google Cloud Deployment Runbook
 
+> **Repository/deployment scope.** This runbook records the accepted R3/R4 deployment path. The canonical engineering repository remains the deployment authority. In this public portfolio repository, `.github/workflows/deploy-gcp.yml` is retained as release evidence but execution is intentionally disabled; this public snapshot is not the deployment authority.
+
 ## Architecture
 
 ```text
@@ -144,9 +146,9 @@ Use a separate temporary file for each provider key, upload it to the correspond
 
 Do not place provider keys in GitHub variables, frontend configuration, Dockerfiles or committed `.env` files.
 
-## Checkpoint 4 — GitHub repository variables
+## Checkpoint 4 — GitHub repository variables (canonical deployment repository)
 
-Configure the values printed by `provision-r3.ps1` as GitHub Actions **repository/environment variables**, including:
+In the canonical engineering repository, configure the values printed by `provision-r3.ps1` as GitHub Actions **repository/environment variables**, including:
 
 ```text
 GCP_PROJECT_ID
@@ -213,13 +215,13 @@ No downloaded service-account JSON key is required. The deployment workflow auth
 
 ## Checkpoint 5 — manually deploy after CI-quality verification
 
-Run the GitHub Actions workflow:
+In the canonical engineering repository, run the GitHub Actions workflow:
 
 ```text
 Deploy Portfolio v1 to GCP
 ```
 
-through `workflow_dispatch`.
+through `workflow_dispatch`. In this public portfolio repository, that workflow is intentionally disabled; do not use the public snapshot as deployment authority.
 
 The workflow first re-runs the backend tests, Ruff correctness check, Python dependency audit, public-repository guard, deterministic AI-quality gate, and frontend lint/audit/build. Only then does it authenticate to Google Cloud, push images and deploy resources.
 

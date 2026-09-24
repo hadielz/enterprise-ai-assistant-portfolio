@@ -95,7 +95,7 @@ Detailed architecture and operations documentation:
 
 ```bash
 git clone https://github.com/hadielz/enterprise-ai-assistant-portfolio.git
-cd enterprise-ai-assistant
+cd enterprise-ai-assistant-portfolio
 ```
 
 Copy `.env.example` to `.env`. Replace `POSTGRES_PASSWORD`, replace the password embedded in `DATABASE_URL` with the same value, and replace `JWT_SECRET_KEY` with a long random secret. Keep `LLM_PROVIDER=mock` if you want a provider-free local smoke test.
@@ -178,7 +178,7 @@ docker compose run --rm --no-deps `
     python -m evals.runner
 ```
 
-The current deterministic inventory contains **41 active required cases** across behavior, RAG, routing, and tool datasets. The accepted R4 baseline passed 41/41, and R5 release-candidate verification passed 41/41 again; the final release commit must remain green in GitHub Actions before `v1.0.0` is created. See [`docs/ai-quality.md`](docs/ai-quality.md).
+The current deterministic inventory contains **41 active required cases** across behavior, RAG, routing, and tool datasets. The accepted R4 baseline passed 41/41, and R5 release-candidate verification passed 41/41 again. The final canonical release commit passed GitHub Actions before `v1.0.0` was created, and the public release snapshot also passed CI after publication. Post-release documentation changes do not move the protected release tag. See [`docs/ai-quality.md`](docs/ai-quality.md).
 
 Release-quality/security checks (these host-side commands require Python 3.11):
 
@@ -235,7 +235,7 @@ Start with:
 - `scripts/gcp/provision-r3.ps1`
 - `.github/workflows/deploy-gcp.yml`
 
-The deployment workflow is manual (`workflow_dispatch`) and authenticates GitHub to Google Cloud through Workload Identity Federation rather than a committed long-lived service-account key.
+The canonical engineering repository retains this workflow as a manual (`workflow_dispatch`) GCP deployment path authenticated through Workload Identity Federation rather than a committed long-lived service-account key. In this public portfolio repository, the workflow source is retained as release evidence but execution is intentionally disabled; this repository is not the deployment authority.
 
 ## Release status
 
@@ -245,11 +245,11 @@ R1 — Enterprise Authorization & Safe Actions v1              ✅
 R2 — Real Ticket Workflow + Real MCP Vertical Slice          ✅
 R3 — Cloud + Production Observability v1                     ✅
 R4 — Security / Release Hardening                             ✅
-R5 — Portfolio v1.0                                          release track
+R5 — Portfolio v1.0                                          RELEASED
       ↓
-   v1.0.0 — release tag
+   v1.0.0 — RELEASED
 ```
 
-R4 is complete. R5 is limited to release documentation/presentation, clean-checkout acceptance, final verification, portfolio media, and release packaging. The `v1.0.0` tag closes v1.0 feature development; subsequent work belongs to post-release tracks.
+R0-R4 are complete, the R5 release gates have passed, and Portfolio v1.0.0 is released. R5-06 post-release propagation continues through career synchronization and handoff work; documentation, portfolio maintenance, and mastery/career work may continue without reopening v1.0 feature development or moving the protected `v1.0.0` tag.
 
 Release notes are maintained in [`docs/release-notes-v1.0.md`](docs/release-notes-v1.0.md).

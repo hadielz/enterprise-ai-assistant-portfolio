@@ -136,4 +136,4 @@ Those concerns are handled by a combination of application controls, backend tes
 
 ## Release rule
 
-For Portfolio v1.0, the deterministic AI-quality gate is mandatory. The final release commit must pass all 41 required active cases and GitHub Actions must be green before `v1.0.0` is created.
+For Portfolio v1.0, the deterministic AI-quality gate was mandatory. The accepted release passed all 41 required active cases, and GitHub Actions was green before `v1.0.0` was created. Post-release documentation changes do not move the protected release tag.
