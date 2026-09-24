@@ -292,11 +292,11 @@ frontend ESLint
 npm audit --audit-level=high
 ```
 
-The manually triggered GCP deployment workflow re-runs the same quality/security
+In the canonical engineering repository, the manually triggered GCP deployment workflow re-runs the same quality/security
 checks before cloud changes. It also configures backend/MCP startup, liveness and
 readiness probes and enables the R4 process-local rate limiter in production.
 
-CI and deployment remain conceptually separate.
+CI and deployment remain conceptually separate. The public portfolio repository retains the deployment workflow source as release evidence but keeps workflow execution disabled.
 
 ## Architecture differences deliberately preserved
 

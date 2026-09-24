@@ -1,6 +1,6 @@
 # Portfolio v1.0.0 Release Notes
 
-**Status:** Final release notes for Portfolio v1.0.0. The tag is created only from a final `main` commit that has passed GitHub Actions.
+**Status:** Released. Portfolio v1.0.0 was created only after the final canonical `main` commit passed GitHub Actions. This public repository preserves the accepted release snapshot while allowing post-release documentation maintenance without moving the protected tag.
 
 These notes describe the bounded Portfolio v1.0.0 release built from the accepted R0-R4 implementation and prepared through the R5 release process.
 
@@ -58,7 +58,7 @@ The release is intentionally a coherent reference system rather than a claim of 
 - frontend lint and npm audit
 - synthetic public-repository guard
 
-R5 release-candidate verification re-ran the complete gate set on candidate `f084f44cae9032198962ef9f9d9160add8e1584f`: 192/192 backend tests, 41/41 deterministic AI-quality cases with average score 1.0000, frontend install/lint/audit/build, both production Docker builds, Ruff, Python dependency audit with the four reviewed ChromaDB advisory exceptions, and the public repository guard. GitHub Actions then passed on PR run #48 and post-merge `main` run #49 at `5a795984f9be4aad17b924b697dea01925f584af`. The final release-notes commit must also be green on `main` before the `v1.0.0` tag is created.
+R5 release-candidate verification re-ran the complete gate set on candidate `f084f44cae9032198962ef9f9d9160add8e1584f`: 192/192 backend tests, 41/41 deterministic AI-quality cases with average score 1.0000, frontend install/lint/audit/build, both production Docker builds, Ruff, Python dependency audit with the four reviewed ChromaDB advisory exceptions, and the public repository guard. GitHub Actions then passed on PR run #48 and post-merge `main` run #49 at `5a795984f9be4aad17b924b697dea01925f584af`. The final canonical release commit subsequently passed GitHub Actions before the `v1.0.0` tag was created.
 
 ### Cloud and observability
 
@@ -120,8 +120,8 @@ See [`known-limitations.md`](known-limitations.md), [`security-baseline.md`](sec
 
 R5 clean-checkout acceptance, architecture/media preparation, release-metadata alignment, local final gates, and candidate/post-merge CI verification are complete.
 
-Before `v1.0.0` is created, this release-notes finalization must be merged to `main` and GitHub Actions must be green on that final main commit.
+The release-notes finalization was merged to canonical `main`, GitHub Actions passed on the final canonical release commit, and `v1.0.0` was created only after those gates passed.
 
-After tagging, release packaging records the GitHub release, final archive SHA256/file count, and repository presentation/publication decision.
+Release packaging then recorded the GitHub release, final archive SHA256/file count, and the publication decision: the canonical engineering repository remains private, while this repository publishes the clean accepted Portfolio v1.0.0 snapshot.
 
-Feature development remains frozen unless a genuine release-blocking defect is discovered. After `v1.0.0`, new feature work moves to a post-release track.
+Feature development for v1.0 is closed. New functionality belongs to post-release tracks; documentation and portfolio-maintenance changes may continue without moving the protected `v1.0.0` tag.
